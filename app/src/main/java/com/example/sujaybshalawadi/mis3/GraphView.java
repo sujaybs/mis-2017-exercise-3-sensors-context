@@ -15,6 +15,7 @@ import java.util.ArrayDeque;
 public class GraphView extends View {
 
     private static final int POINT_WINDOW = 1024;
+    private static final float TOP_MAGNITUDE = 150.0f;
 
     private Paint redLine;
     private Paint greenLine;
@@ -70,16 +71,33 @@ public class GraphView extends View {
     }
 
     public void pushValues(float x, float y, float z, float m) {
-        pointVecs.x.push(x);
-        pointVecs.y.push(y);
-        pointVecs.z.push(z);
-        pointVecs.m.push(m);
+        if (backgroundRect == null) {
+            return;
+        }
+
+        float coefficientHeight = backgroundRect.height() / TOP_MAGNITUDE;
+        float coefficientWidth = backgroundRect.width() / POINT_WINDOW;
+
+        pointVecs.x.push(x * coefficientHeight);
+        pointVecs.x.push(pointVecs.x.size() / 2 * coefficientWidth);
+        pointVecs.y.push(y * coefficientHeight);
+        pointVecs.y.push(pointVecs.y.size() / 2 * coefficientWidth);
+        pointVecs.z.push(z * coefficientHeight);
+        pointVecs.z.push(pointVecs.z.size() / 2 * coefficientWidth);
+        pointVecs.m.push(m * coefficientHeight);
+        pointVecs.m.push(pointVecs.m.size() / 2 * coefficientWidth);
+
         if (pointVecs.x.size() > POINT_WINDOW) {
             pointVecs.x.removeLast();
+            pointVecs.x.removeLast();
+            pointVecs.y.removeLast();
             pointVecs.y.removeLast();
             pointVecs.z.removeLast();
+            pointVecs.z.removeLast();
+            pointVecs.m.removeLast();
             pointVecs.m.removeLast();
         }
+
         adjustValues();
         invalidate();
     }
@@ -101,13 +119,17 @@ public class GraphView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawRect(backgroundRect, blackBackground);
+        if (backgroundRect != null)
+            canvas.drawRect(backgroundRect, blackBackground);
 
-        canvas.drawLines(pointBufferX, redLine);
-        canvas.drawLines(pointBufferY, blueLine);
-        canvas.drawLines(pointBufferZ, greenLine);
-        canvas.drawLines(pointBufferM, whiteLine);
-
+        if (pointBufferX != null)
+            canvas.drawLines(pointBufferX, redLine);
+        if (pointBufferY != null)
+            canvas.drawLines(pointBufferY, blueLine);
+        if (pointBufferZ != null)
+            canvas.drawLines(pointBufferZ, greenLine);
+        if (pointBufferM != null)
+            canvas.drawLines(pointBufferM, whiteLine);
     }
 
     private static final class PointVec {
