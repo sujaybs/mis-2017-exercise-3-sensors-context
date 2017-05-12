@@ -1,12 +1,12 @@
 <component name="libraryTable">
   <library name="iconics-core-2.8.4">
     <CLASSES>
-      <root url="jar://$USER_HOME$/.android/build-cache/9ad40fb192e9c4988d8ea867fbf99238f5b17763/output/jars/classes.jar!/" />
-      <root url="file://$USER_HOME$/.android/build-cache/9ad40fb192e9c4988d8ea867fbf99238f5b17763/output/res" />
+      <root url="file://$USER_HOME$/.android/build-cache/b21b345dfa30cb9a5331f1fa048bb9a94dec1c61/output/res" />
+      <root url="jar://$USER_HOME$/.android/build-cache/b21b345dfa30cb9a5331f1fa048bb9a94dec1c61/output/jars/classes.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>
-      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.mikepenz/iconics-core/2.8.4/10ca026ef028f394b1e026b93f5e2d16954d742a/iconics-core-2.8.4-sources.jar!/" />
+      <root url="jar://D:/gradleshit/caches/modules-2/files-2.1/com.mikepenz/iconics-core/2.8.4/10ca026ef028f394b1e026b93f5e2d16954d742a/iconics-core-2.8.4-sources.jar!/" />
     </SOURCES>
   </library>
 </component>
