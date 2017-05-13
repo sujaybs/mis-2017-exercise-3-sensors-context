@@ -8,13 +8,8 @@ import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
-import org.apache.commons.lang3.ArrayUtils;
-
-import java.util.ArrayDeque;
-
 public class GraphView extends View {
 
-    private static final int POINT_WINDOW = 1024;
     private static final float TOP_MAGNITUDE = 150.0f;
 
     private Paint redLine;
@@ -24,8 +19,6 @@ public class GraphView extends View {
     private Paint blackBackground;
 
     private RectF backgroundRect;
-
-    private PointVec pointVecs;
 
     private float[] pointBufferX;
     private float[] pointBufferY;
@@ -67,47 +60,58 @@ public class GraphView extends View {
         blackBackground = new Paint(Paint.ANTI_ALIAS_FLAG);
         blackBackground.setColor(Color.BLACK);
 
-        pointVecs = new PointVec();
     }
 
-    public void pushValues(float x, float y, float z, float m) {
-        if (backgroundRect == null) {
-            return;
-        }
+//    public void pushValues(float x, float y, float z, float m) {
+//        if (backgroundRect == null) {
+//            return;
+//        }
+//
+//        float coefficientHeight = backgroundRect.height() / TOP_MAGNITUDE;
+//        float coefficientWidth = backgroundRect.width() / POINT_WINDOW;
+//
+//        pointVecs.x.push(x * coefficientHeight);
+//        pointVecs.x.push(pointVecs.x.size() / 2 * coefficientWidth);
+//        pointVecs.y.push(y * coefficientHeight);
+//        pointVecs.y.push(pointVecs.y.size() / 2 * coefficientWidth);
+//        pointVecs.z.push(z * coefficientHeight);
+//        pointVecs.z.push(pointVecs.z.size() / 2 * coefficientWidth);
+//        pointVecs.m.push(m * coefficientHeight);
+//        pointVecs.m.push(pointVecs.m.size() / 2 * coefficientWidth);
+//
+//        if (pointVecs.x.size() > POINT_WINDOW) {
+//            pointVecs.x.removeLast();
+//            pointVecs.x.removeLast();
+//            pointVecs.y.removeLast();
+//            pointVecs.y.removeLast();
+//            pointVecs.z.removeLast();
+//            pointVecs.z.removeLast();
+//            pointVecs.m.removeLast();
+//            pointVecs.m.removeLast();
+//        }
+//
+//        float coefficientHeight = backgroundRect.height() / TOP_MAGNITUDE;
+//        float coefficientWidth = backgroundRect.width() / POINT_WINDOW;
+//
+//        pointVecs.x.push(x * coefficientHeight);
+//        pointVecs.x.push(pointVecs.x.size() / 2 * coefficientWidth);
+//        pointVecs.y.push(y * coefficientHeight);
+//        pointVecs.y.push(pointVecs.y.size() / 2 * coefficientWidth);
+//        pointVecs.z.push(z * coefficientHeight);
+//        pointVecs.z.push(pointVecs.z.size() / 2 * coefficientWidth);
+//        pointVecs.m.push(m * coefficientHeight);
+//        pointVecs.m.push(pointVecs.m.size() / 2 * coefficientWidth);
+//
+//        adjustValues();
+//        invalidate();
+//    }
 
-        float coefficientHeight = backgroundRect.height() / TOP_MAGNITUDE;
-        float coefficientWidth = backgroundRect.width() / POINT_WINDOW;
-
-        pointVecs.x.push(x * coefficientHeight);
-        pointVecs.x.push(pointVecs.x.size() / 2 * coefficientWidth);
-        pointVecs.y.push(y * coefficientHeight);
-        pointVecs.y.push(pointVecs.y.size() / 2 * coefficientWidth);
-        pointVecs.z.push(z * coefficientHeight);
-        pointVecs.z.push(pointVecs.z.size() / 2 * coefficientWidth);
-        pointVecs.m.push(m * coefficientHeight);
-        pointVecs.m.push(pointVecs.m.size() / 2 * coefficientWidth);
-
-        if (pointVecs.x.size() > POINT_WINDOW) {
-            pointVecs.x.removeLast();
-            pointVecs.x.removeLast();
-            pointVecs.y.removeLast();
-            pointVecs.y.removeLast();
-            pointVecs.z.removeLast();
-            pointVecs.z.removeLast();
-            pointVecs.m.removeLast();
-            pointVecs.m.removeLast();
-        }
-
-        adjustValues();
-        invalidate();
-    }
-
-    private void adjustValues() {
-        pointBufferX = ArrayUtils.toPrimitive(pointVecs.x.toArray(new Float[POINT_WINDOW]), 0.0F);
-        pointBufferY = ArrayUtils.toPrimitive(pointVecs.y.toArray(new Float[POINT_WINDOW]), 0.0F);
-        pointBufferZ = ArrayUtils.toPrimitive(pointVecs.z.toArray(new Float[POINT_WINDOW]), 0.0F);
-        pointBufferM = ArrayUtils.toPrimitive(pointVecs.m.toArray(new Float[POINT_WINDOW]), 0.0F);
-    }
+//    private void adjustValues() {
+//        pointBufferX = ArrayUtils.toPrimitive(pointVecs.x.toArray(new Float[POINT_WINDOW]), 0.0F);
+//        pointBufferY = ArrayUtils.toPrimitive(pointVecs.y.toArray(new Float[POINT_WINDOW]), 0.0F);
+//        pointBufferZ = ArrayUtils.toPrimitive(pointVecs.z.toArray(new Float[POINT_WINDOW]), 0.0F);
+//        pointBufferM = ArrayUtils.toPrimitive(pointVecs.m.toArray(new Float[POINT_WINDOW]), 0.0F);
+//    }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
@@ -132,17 +136,8 @@ public class GraphView extends View {
             canvas.drawLines(pointBufferM, whiteLine);
     }
 
-    private static final class PointVec {
-        ArrayDeque<Float> x;
-        ArrayDeque<Float> y;
-        ArrayDeque<Float> z;
-        ArrayDeque<Float> m;
-
-        PointVec() {
-            x = new ArrayDeque<>();
-            y = new ArrayDeque<>();
-            z = new ArrayDeque<>();
-            m = new ArrayDeque<>();
-        }
+    public void setBuffers(float[] pointBufferX, float[] pointBufferY, float[] pointBufferZ, float[] pointBufferM) {
+        // TODO
+        invalidate();
     }
 }
