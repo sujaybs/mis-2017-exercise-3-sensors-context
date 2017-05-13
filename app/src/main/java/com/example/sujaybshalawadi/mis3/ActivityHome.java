@@ -7,15 +7,17 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.util.Log;
 
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class ActivityHome extends Activity implements SensorEventListener {
+    public static final int POINT_WINDOW = 128;
     private static final int SHAKE_THRESHOLD = 600;
-    private static final int POINT_WINDOW = 1024;
     private SensorManager senSensorManager;
     private Sensor senAccelerometer;
     private GraphView graphView;
@@ -37,10 +39,30 @@ public class ActivityHome extends Activity implements SensorEventListener {
             readingsDeques.m.removeLast();
         }
 
-        float[] pointBufferX = ArrayUtils.toPrimitive(readingsDeques.x.toArray(new Float[POINT_WINDOW]), 0.0F);
-        float[] pointBufferY = ArrayUtils.toPrimitive(readingsDeques.y.toArray(new Float[POINT_WINDOW]), 0.0F);
-        float[] pointBufferZ = ArrayUtils.toPrimitive(readingsDeques.z.toArray(new Float[POINT_WINDOW]), 0.0F);
-        float[] pointBufferM = ArrayUtils.toPrimitive(readingsDeques.m.toArray(new Float[POINT_WINDOW]), 0.0F);
+        Float[] pointsX = readingsDeques.x.toArray(new Float[readingsDeques.x.size()]);
+        Float[] pointsY = readingsDeques.y.toArray(new Float[readingsDeques.y.size()]);
+        Float[] pointsZ = readingsDeques.z.toArray(new Float[readingsDeques.z.size()]);
+        Float[] pointsM = readingsDeques.m.toArray(new Float[readingsDeques.m.size()]);
+
+        ArrayList<Float> listX = new ArrayList<>(Arrays.asList(pointsX));
+        ArrayList<Float> listY = new ArrayList<>(Arrays.asList(pointsY));
+        ArrayList<Float> listZ = new ArrayList<>(Arrays.asList(pointsZ));
+        ArrayList<Float> listM = new ArrayList<>(Arrays.asList(pointsM));
+
+        float[] pointBufferX = ArrayUtils.toPrimitive(pointsX, 0.0F);
+        float[] pointBufferY = ArrayUtils.toPrimitive(pointsY, 0.0F);
+        float[] pointBufferZ = ArrayUtils.toPrimitive(pointsZ, 0.0F);
+        float[] pointBufferM = ArrayUtils.toPrimitive(pointsM, 0.0F);
+
+        graphView.adjustMaxima(Collections.max(listX),
+                Collections.max(listY),
+                Collections.max(listZ),
+                Collections.max(listM));
+
+        graphView.adjustMinima(Collections.min(listX),
+                Collections.min(listY),
+                Collections.min(listZ),
+                Collections.min(listM));
 
         graphView.setBuffers(pointBufferX, pointBufferY, pointBufferZ, pointBufferM);
 
@@ -71,9 +93,9 @@ public class ActivityHome extends Activity implements SensorEventListener {
             float y = sensorEvent.values[1];
             float z = sensorEvent.values[2];
 
-            long curTime = System.currentTimeMillis();
+            long curTime = System.nanoTime();
 
-            if ((curTime - lastUpdate) > 100) {
+            if ((curTime - lastUpdate) > 1300000) {
                 long diffTime = (curTime - lastUpdate);
                 lastUpdate = curTime;
 
@@ -91,7 +113,7 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
                 pushValues(x, y, z, m);
 
-                Log.e(getClass().getName(), String.format("X: %f, Y: %f, Z: %f, Magnitude : %f", last_x, last_y, last_z, m));
+//                Log.e(getClass().getName(), String.format("X: %f, Y: %f, Z: %f, Magnitude : %f", last_x, last_y, last_z, m));
             }
         }
 
