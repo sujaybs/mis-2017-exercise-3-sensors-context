@@ -10,7 +10,6 @@ import android.os.Bundle;
 
 import org.apache.commons.lang3.ArrayUtils;
 
-import java.lang.reflect.Array;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,17 +66,14 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
         graphView.setBuffers(pointBufferX, pointBufferY, pointBufferZ, pointBufferM);
 
-        // TODO: implement FFT
-                        double[] q = new double[pointBufferM.length];
-                        for (int i=0; i<pointBufferM.length;i++)
-                        {
-                            q[i] = pointBufferM[i];
-                        }
 
-                        FFT fft = new FFT(1024);
-                        fft.fft(q, new double[1024]);
+        double[] q = new double[pointBufferM.length];
+        for (int i = 0; i < pointBufferM.length; i++) {
+            q[i] = pointBufferM[i];
+        }
 
-
+        FFT fft = new FFT(1024);
+        fft.fft(q, new double[1024]);
 
     }
 

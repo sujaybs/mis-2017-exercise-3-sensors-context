@@ -28,8 +28,6 @@ package com.example.sujaybshalawadi.mis3;
  *  https://www.ee.columbia.edu/~ronw/code/MEAPsoft/doc/html/FFT_8java-source.html
  */
 
-import android.util.Log;
-
 public class FFT {
 
     int n, m;
@@ -62,20 +60,22 @@ public class FFT {
      * University of Illinois at Urbana-Champaign
      * January 19, 1992
      * http://cnx.rice.edu/content/m12016/latest/
-     *
-     *   fft: in-place radix-2 DIT DFT of a complex input
-     *
-     *   input:
+     * <p>
+     * fft: in-place radix-2 DIT DFT of a complex input
+     * <p>
+     * input:
      * n: length of FFT: must be a power of two
      * m: n = 2**m
-     *   input/output
+     * input/output
      * x: double array of length n with real part of data
      * y: double array of length n with imag part of data
+     * <p>
+     * Permission to copy and use this program is granted
+     * as long as this header is included.
+     * **************************************************************  @param x
      *
-     *   Permission to copy and use this program is granted
-     *   as long as this header is included.
-     ***************************************************************  @param x
-     * @param y*/
+     * @param y
+     */
 
     public void fft(double[] x, double[] y) {
         int i, j, k, n1, n2, a;
@@ -127,13 +127,12 @@ public class FFT {
             }
         }
 
-        for(i = 0; i< x.length; i++) {
-            for (j = 0; j < y.length; j++) {
-                double Magnitude =  Math.sqrt(Math.pow(x[i], 2) + Math.pow(y[j], 2));
-                Log.e(getClass().getName(), String.format("Absolute : %f", Magnitude));
-            }
-        }
-
+//        for(i = 0; i< x.length; i++) {
+//            for (j = 0; j < y.length; j++) {
+//                double Magnitude =  Math.sqrt(Math.pow(x[i], 2) + Math.pow(y[j], 2));
+//                Log.e(getClass().getName(), String.format("Absolute : %f", Magnitude));
+//            }
+//        }
 
     }
 }
