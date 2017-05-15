@@ -3,6 +3,14 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <SeekBar
+        android:id="@+id/seekBar"
+        style="@style/Widget.AppCompat.SeekBar.Discrete"
+        android:layout_width="match_parent"
+        android:max="5"
+        android:progress="5"
+        android:layout_height="16dp" />
+
     <com.example.sujaybshalawadi.mis3.GraphView
         android:id="@+id/graph_view"
         android:layout_width="match_parent"
@@ -14,5 +22,13 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="0.5" />
+
+    <SeekBar
+        android:id="@+id/seekBar2"
+        android:max="6"
+        android:progress="6"
+        style="@style/Widget.AppCompat.SeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="16dp" />
 
 </LinearLayout>
