@@ -138,44 +138,44 @@ public class GraphView extends View {
             drawText(canvas,
                     String.format("Max: %f", maxima[0]),
                     backgroundRect.width() * 0.95f,
-                    backgroundRect.height() * 0.2f,
+                    backgroundRect.height() * 0f,
                     redText);
             drawText(canvas,
                     String.format("Max: %f", maxima[1]),
                     backgroundRect.width() * 0.95f,
-                    backgroundRect.height() * 0.4f,
+                    backgroundRect.height() * 0.25f,
                     greenText);
             drawText(canvas,
                     String.format("Max: %f", maxima[2]),
                     backgroundRect.width() * 0.95f,
-                    backgroundRect.height() * 0.6f,
+                    backgroundRect.height() * 0.5f,
                     blueText);
             drawText(canvas,
                     String.format("Max: %f", maxima[3]),
                     backgroundRect.width() * 0.95f,
-                    backgroundRect.height() * 0.8f,
+                    backgroundRect.height() * 0.75f,
                     whiteText);
         }
         if (minima != null) {
             drawText(canvas,
                     String.format("Min: %f", minima[0]),
                     backgroundRect.width() * 0.05f,
-                    backgroundRect.height() * 0.2f,
+                    backgroundRect.height() * 0f,
                     redText);
             drawText(canvas,
                     String.format("Min: %f", minima[1]),
                     backgroundRect.width() * 0.05f,
-                    backgroundRect.height() * 0.4f,
+                    backgroundRect.height() * 0.25f,
                     greenText);
             drawText(canvas,
                     String.format("Min: %f", minima[2]),
                     backgroundRect.width() * 0.05f,
-                    backgroundRect.height() * 0.6f,
+                    backgroundRect.height() * 0.50f,
                     blueText);
             drawText(canvas,
                     String.format("Min: %f", minima[3]),
                     backgroundRect.width() * 0.05f,
-                    backgroundRect.height() * 0.8f,
+                    backgroundRect.height() * 0.75f,
                     whiteText);
         }
     }

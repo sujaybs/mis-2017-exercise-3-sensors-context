@@ -2,11 +2,20 @@ package com.example.sujaybshalawadi.mis3;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -15,16 +24,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+
 public class ActivityHome extends Activity implements SensorEventListener {
-    public static final int POINT_WINDOW = 128;
-    private static final int SHAKE_THRESHOLD = 600;
-    private SensorManager senSensorManager;
-    private Sensor senAccelerometer;
+    public static final int POINT_WINDOW = 1024;
+
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private LocationManager locationMamnager;
+    private MusicRetriever musicRetriever;
+    private MediaPlayer mediaPlayerJogging;
+    private MediaPlayer mediaPlayerCycling;
+
     private GraphView graphView;
+    private SpectrumView spectrumView;
     private long lastUpdate = 0;
-    private float last_x, last_y, last_z;
 
     private ReadingsDeques readingsDeques;
+
+    private HammingWindow hammingWindow;
+    private FFT fft;
+    private float speed = 0.0f;
+
+    private String[] LOCATION_PERMISSIONS = new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION};
+    private int REQUEST_CHECK_SETTINGS = 0xAB;
 
     public void pushValues(float x, float y, float z, float m) {
         readingsDeques.x.push(x);
@@ -66,26 +90,116 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
         graphView.setBuffers(pointBufferX, pointBufferY, pointBufferZ, pointBufferM);
 
+        double[] freqReal = new double[POINT_WINDOW];
+        double[] freqImag = new double[POINT_WINDOW];
+        float[] freqAbs = new float[POINT_WINDOW];
 
-        double[] q = new double[pointBufferM.length];
         for (int i = 0; i < pointBufferM.length; i++) {
-            q[i] = pointBufferM[i];
+            freqReal[i] = hammingWindow.getValue(i) * pointBufferM[i];
         }
 
-        FFT fft = new FFT(1024);
-        fft.fft(q, new double[1024]);
+        fft.fft(freqReal, freqImag);
 
+        for (int i = 0; i < freqReal.length; i++) {
+            freqAbs[i] = (float) Math.sqrt(Math.pow(freqReal[i], 2) + Math.pow(freqImag[i], 2));
+        }
+
+        // Suppress side peaks
+        freqAbs[0] = 0f;
+        freqAbs[1] = 0f;
+        freqAbs[freqAbs.length - 2] = 0f;
+        freqAbs[freqAbs.length - 1] = 0f;
+
+        ArrayList<Float> freqsAbs = new ArrayList<>(Arrays.asList(ArrayUtils.toObject(freqAbs)));
+        spectrumView.adjustMaximum(Collections.max(freqsAbs));
+        spectrumView.setBuffer(freqAbs);
+
+        ActivityDetector.DetectedActivity detectedActivity = ActivityDetector.detect(speed, freqAbs);
+
+        if (detectedActivity.equals(ActivityDetector.DetectedActivity.Jogging)) {
+            Log.e(getClass().getName(),"JOGGING");
+            mediaPlayerJogging.start();
+        } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Cycling)) {
+            Log.e(getClass().getName(),"CYCLING");
+            mediaPlayerCycling.start();
+        } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Resting)) {
+            Log.e(getClass().getName(),"RESTING");
+            mediaPlayerJogging.stop();
+            mediaPlayerCycling.stop();
+        }
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         readingsDeques = new ReadingsDeques();
-        graphView = new GraphView(this);
-        setContentView(graphView);
-        senSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        senAccelerometer = senSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        senSensorManager.registerListener(this, senAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+
+        setContentView(R.layout.activity_maps);
+        graphView = (GraphView) findViewById(R.id.graph_view);
+        spectrumView = (SpectrumView) findViewById(R.id.spectrum_view);
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        locationMamnager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        musicRetriever = new MusicRetriever(this.getContentResolver());
+        mediaPlayerJogging = MediaPlayer.create(this, R.raw.jogging);
+        mediaPlayerCycling = MediaPlayer.create(this, R.raw.cycling);
+
+        tryRequestLocationUpdates();
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+
+        hammingWindow = new HammingWindow(POINT_WINDOW);
+        fft = new FFT(POINT_WINDOW);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CHECK_SETTINGS) {
+            if (resultCode == Activity.RESULT_OK) {
+                tryRequestLocationUpdates();
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                askForPermissions();
+            }
+        }
+    }
+
+    private void askForPermissions() {
+        Snackbar.make(findViewById(R.id.graph_view), "Location permission required", Snackbar.LENGTH_INDEFINITE)
+                .setAction(
+                        "Grant",
+                        (view) -> ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, REQUEST_CHECK_SETTINGS))
+                .show();
+    }
+
+    private void tryRequestLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, REQUEST_CHECK_SETTINGS);
+            return;
+        }
+
+        locationMamnager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                1000L, 5.0f, new LocationListener() {
+                    @Override
+                    public void onLocationChanged(Location location) {
+                        speed = location.getSpeed();
+                    }
+
+                    @Override
+                    public void onStatusChanged(String provider, int status, Bundle extras) {
+                        // ignore
+                    }
+
+                    @Override
+                    public void onProviderEnabled(String provider) {
+                        // ignore
+                    }
+
+                    @Override
+                    public void onProviderDisabled(String provider) {
+                        // ignore
+                    }
+                });
     }
 
     @Override
@@ -99,25 +213,12 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
             long curTime = System.nanoTime();
 
-            if ((curTime - lastUpdate) > 1300000) {
-                long diffTime = (curTime - lastUpdate);
+            if (curTime - lastUpdate > 1300000) {
                 lastUpdate = curTime;
 
-                float speed = Math.abs(x + y + z - last_x - last_y - last_z) / diffTime * 10000;
-
-                if (speed > SHAKE_THRESHOLD) {
-
-                }
-
-                last_x = x;
-                last_y = y;
-                last_z = z;
-
-                float m = (float) Math.sqrt(Math.pow(last_x, 2) + Math.pow(last_y, 2) + Math.pow(last_z, 2));
+                float m = (float) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
 
                 pushValues(x, y, z, m);
-
-//                Log.e(getClass().getName(), String.format("X: %f, Y: %f, Z: %f, Magnitude : %f", last_x, last_y, last_z, m));
             }
         }
 
@@ -133,12 +234,12 @@ public class ActivityHome extends Activity implements SensorEventListener {
      */
     protected void onPause() {
         super.onPause();
-        senSensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(this);
     }
 
     protected void onResume() {
         super.onResume();
-        senSensorManager.registerListener(this, senAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     private static final class ReadingsDeques {

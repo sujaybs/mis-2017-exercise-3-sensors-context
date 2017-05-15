@@ -127,12 +127,5 @@ public class FFT {
             }
         }
 
-//        for(i = 0; i< x.length; i++) {
-//            for (j = 0; j < y.length; j++) {
-//                double Magnitude =  Math.sqrt(Math.pow(x[i], 2) + Math.pow(y[j], 2));
-//                Log.e(getClass().getName(), String.format("Absolute : %f", Magnitude));
-//            }
-//        }
-
     }
 }
