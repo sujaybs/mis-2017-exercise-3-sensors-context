@@ -16,6 +16,7 @@ import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
+import android.widget.SeekBar;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -28,7 +29,6 @@ import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
 public class ActivityHome extends Activity implements SensorEventListener {
-    public static final int POINT_WINDOW = 1024;
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -40,6 +40,8 @@ public class ActivityHome extends Activity implements SensorEventListener {
     private GraphView graphView;
     private SpectrumView spectrumView;
     private long lastUpdate = 0;
+    private SeekBar seekBarSampling;
+    private SeekBar seekBarWindow;
 
     private ReadingsDeques readingsDeques;
 
@@ -50,13 +52,16 @@ public class ActivityHome extends Activity implements SensorEventListener {
     private String[] LOCATION_PERMISSIONS = new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION};
     private int REQUEST_CHECK_SETTINGS = 0xAB;
 
+    private static int windowIndex = 5;
+    private static int samplingIndex = 7;
+
     public void pushValues(float x, float y, float z, float m) {
         readingsDeques.x.push(x);
         readingsDeques.y.push(y);
         readingsDeques.z.push(z);
         readingsDeques.m.push(m);
 
-        if (readingsDeques.x.size() > POINT_WINDOW) {
+        if (readingsDeques.x.size() > getPointWindow()) {
             readingsDeques.x.removeLast();
             readingsDeques.y.removeLast();
             readingsDeques.z.removeLast();
@@ -90,9 +95,12 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
         graphView.setBuffers(pointBufferX, pointBufferY, pointBufferZ, pointBufferM);
 
-        double[] freqReal = new double[POINT_WINDOW];
-        double[] freqImag = new double[POINT_WINDOW];
-        float[] freqAbs = new float[POINT_WINDOW];
+        double[] freqReal = new double[getPointWindow()];
+        double[] freqImag = new double[getPointWindow()];
+        float[] freqAbs = new float[getPointWindow()];
+
+        hammingWindow = new HammingWindow(getPointWindow());
+        fft = new FFT(getPointWindow());
 
         for (int i = 0; i < pointBufferM.length; i++) {
             freqReal[i] = hammingWindow.getValue(i) * pointBufferM[i];
@@ -134,9 +142,11 @@ public class ActivityHome extends Activity implements SensorEventListener {
         super.onCreate(savedInstanceState);
         readingsDeques = new ReadingsDeques();
 
-        setContentView(R.layout.activity_maps);
+        setContentView(R.layout.activity_home);
         graphView = (GraphView) findViewById(R.id.graph_view);
         spectrumView = (SpectrumView) findViewById(R.id.spectrum_view);
+        seekBarSampling = (SeekBar) findViewById(R.id.seekBar);
+        seekBarWindow = (SeekBar) findViewById(R.id.seekBar2);
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -147,9 +157,47 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
         tryRequestLocationUpdates();
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        seekBarWindow.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 
-        hammingWindow = new HammingWindow(POINT_WINDOW);
-        fft = new FFT(POINT_WINDOW);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                windowIndex = seekBar.getProgress();
+            }
+        });
+
+        seekBarSampling.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                samplingIndex = seekBar.getProgress();
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+    }
+    
+    long getSamplingTimeout(){
+        return 1300000 * (6-samplingIndex);
+    }
+    
+    static int getPointWindow(){
+        return (int) Math.pow(2,7+windowIndex);
     }
 
     @Override
@@ -213,7 +261,7 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
             long curTime = System.nanoTime();
 
-            if (curTime - lastUpdate > 1300000) {
+            if (curTime - lastUpdate > getSamplingTimeout()) {
                 lastUpdate = curTime;
 
                 float m = (float) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));

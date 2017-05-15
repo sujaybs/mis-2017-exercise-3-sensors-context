@@ -10,8 +10,6 @@ import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
-import static com.example.sujaybshalawadi.mis3.ActivityHome.POINT_WINDOW;
-
 public class SpectrumView extends View {
 
     private Paint whiteLine;
@@ -65,7 +63,6 @@ public class SpectrumView extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         backgroundRect = new RectF(0, 0, w, h);
-        coefficientWidth = backgroundRect.height() / POINT_WINDOW * 2;
     }
 
     @SuppressLint("DefaultLocale")
@@ -99,6 +96,9 @@ public class SpectrumView extends View {
     public void setBuffer(float[] pointBufferM) {
         if (backgroundRect == null)
             return;
+
+
+        coefficientWidth = backgroundRect.height() / ActivityHome.getPointWindow() * 2;
 
         pathM = getPath(pointBufferM);
 

@@ -10,8 +10,6 @@ import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
-import static com.example.sujaybshalawadi.mis3.ActivityHome.POINT_WINDOW;
-
 public class GraphView extends View {
 
     private Paint redLine;
@@ -113,7 +111,6 @@ public class GraphView extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         backgroundRect = new RectF(0, 0, w, h);
-        coefficientWidth = backgroundRect.height() / POINT_WINDOW;
     }
 
     @SuppressLint("DefaultLocale")
@@ -190,6 +187,8 @@ public class GraphView extends View {
     public void setBuffers(float[] pointBufferX, float[] pointBufferY, float[] pointBufferZ, float[] pointBufferM) {
         if (backgroundRect == null)
             return;
+
+        coefficientWidth = backgroundRect.height() / ActivityHome.getPointWindow();
 
         pathX = getPath(pointBufferX, 0);
         pathY = getPath(pointBufferY, 1);
