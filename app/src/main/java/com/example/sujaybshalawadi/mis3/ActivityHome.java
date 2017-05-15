@@ -2,6 +2,7 @@ package com.example.sujaybshalawadi.mis3;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,7 +17,6 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -34,10 +34,11 @@ import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
 
-public class ActivityHome extends Activity implements SensorEventListener {
+public class ActivityHome extends Activity {
 
-    private static int windowIndex = 5;
+    private static int windowIndex = 3;
     private static int samplingIndex = 7;
+
     private SensorManager sensorManager;
     private Sensor accelerometer;
     private LocationManager locationMamnager;
@@ -55,6 +56,7 @@ public class ActivityHome extends Activity implements SensorEventListener {
     private float speed = 0.0f;
     private String[] PERMISSIONS = new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, READ_EXTERNAL_STORAGE};
     private int REQUEST_CHECK_SETTINGS = 0xAB;
+
     private LocationListener locationListener = new LocationListener() {
         @Override
         public void onLocationChanged(Location location) {
@@ -77,17 +79,49 @@ public class ActivityHome extends Activity implements SensorEventListener {
         }
     };
 
+    private boolean isPlottingStopped = false;
+    private SensorEventListener sensorEventListener = new SensorEventListener() {
+        @Override
+        public void onSensorChanged(SensorEvent sensorEvent) {
+            Sensor mySensor = sensorEvent.sensor;
+
+            if (mySensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                float x = sensorEvent.values[0];
+                float y = sensorEvent.values[1];
+                float z = sensorEvent.values[2];
+
+                long curTime = System.nanoTime();
+
+                if (curTime - lastUpdate > getSamplingTimeout() && !isPlottingStopped) {
+                    lastUpdate = curTime;
+
+                    float m = (float) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
+
+                    pushValues(x, y, z, m);
+                }
+            }
+
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            // ignore
+        }
+    };
+
     static int getPointWindow() {
         return (int) Math.pow(2, 7 + windowIndex);
     }
 
     public void pushValues(float x, float y, float z, float m) {
+        int pointWindow = getPointWindow();
+
         readingsDeques.x.push(x);
         readingsDeques.y.push(y);
         readingsDeques.z.push(z);
         readingsDeques.m.push(m);
 
-        if (readingsDeques.x.size() > getPointWindow()) {
+        while (readingsDeques.x.size() > pointWindow) {
             readingsDeques.x.removeLast();
             readingsDeques.y.removeLast();
             readingsDeques.z.removeLast();
@@ -121,12 +155,12 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
         graphView.setBuffers(pointBufferX, pointBufferY, pointBufferZ, pointBufferM);
 
-        double[] freqReal = new double[getPointWindow()];
-        double[] freqImag = new double[getPointWindow()];
-        float[] freqAbs = new float[getPointWindow()];
+        double[] freqReal = new double[pointWindow];
+        double[] freqImag = new double[pointWindow];
+        float[] freqAbs = new float[pointWindow];
 
-        hammingWindow = new HammingWindow(getPointWindow());
-        fft = new FFT(getPointWindow());
+        hammingWindow = new HammingWindow(pointWindow);
+        fft = new FFT(pointWindow);
 
         for (int i = 0; i < pointBufferM.length; i++) {
             freqReal[i] = hammingWindow.getValue(i) * pointBufferM[i];
@@ -157,7 +191,6 @@ public class ActivityHome extends Activity implements SensorEventListener {
             Log.e(getClass().getName(), "CYCLING");
             mediaPlayerCycling.start();
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Resting)) {
-            Log.e(getClass().getName(), "RESTING");
             mediaPlayerJogging.stop();
             mediaPlayerCycling.stop();
         }
@@ -181,8 +214,8 @@ public class ActivityHome extends Activity implements SensorEventListener {
     }
 
     private void displayCyclingOptions() {
-        AlertDialog.Builder builderSingle = new AlertDialog.Builder(this);
-        builderSingle.setTitle("Select a tune for cycling: ");
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select a tune for cycling: ");
 
         ArrayList<MusicRetriever.Item> items = musicRetriever.getItems();
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_singlechoice);
@@ -191,33 +224,28 @@ public class ActivityHome extends Activity implements SensorEventListener {
             arrayAdapter.add(item.title);
         }
 
-        builderSingle.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss());
-
-        builderSingle.setAdapter(arrayAdapter, (dialog, which) -> {
-            mediaPlayerCycling = MediaPlayer.create(this, items.get(which).getURI());
-        });
-
-        builderSingle.show();
+        builder.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss())
+                .setAdapter(arrayAdapter, (dialog, which) -> {
+                    mediaPlayerCycling = MediaPlayer.create(this, items.get(which).getURI());
+                }).show();
     }
 
     private void displayJoggingOptions() {
-        AlertDialog.Builder builderSingle = new AlertDialog.Builder(this);
-        builderSingle.setTitle("Select a tune for jogging: ");
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select a tune for jogging: ");
 
         ArrayList<MusicRetriever.Item> items = musicRetriever.getItems();
+
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_singlechoice);
         for (int i = 0; i < items.size(); i++) {
             MusicRetriever.Item item = items.get(i);
             arrayAdapter.add(item.title);
         }
 
-        builderSingle.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss());
-
-        builderSingle.setAdapter(arrayAdapter, (dialog, which) -> {
-            mediaPlayerJogging = MediaPlayer.create(this, items.get(which).getURI());
-        });
-
-        builderSingle.show();
+        builder.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss())
+                .setAdapter(arrayAdapter, (dialog, which) -> {
+                    mediaPlayerJogging = MediaPlayer.create(this, items.get(which).getURI());
+                }).show();
     }
 
     @Override
@@ -240,20 +268,21 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
         tryLoadTracks();
         tryRequestLocationUpdates();
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(sensorEventListener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         seekBarWindow.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-
+                isPlottingStopped = true;
             }
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
-
+                isPlottingStopped = true;
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
+                isPlottingStopped = false;
                 windowIndex = seekBar.getProgress();
             }
         });
@@ -302,9 +331,8 @@ public class ActivityHome extends Activity implements SensorEventListener {
     }
 
     private void askForPermissions() {
-        Snackbar.make(findViewById(R.id.graph_view), "Location permission required", Snackbar.LENGTH_INDEFINITE)
-                .setAction(
-                        "Grant",
+        Snackbar.make(findViewById(R.id.graph_view), "Permissions required", Snackbar.LENGTH_INDEFINITE)
+                .setAction("Grant",
                         (view) -> ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CHECK_SETTINGS))
                 .show();
     }
@@ -319,39 +347,9 @@ public class ActivityHome extends Activity implements SensorEventListener {
         locationMamnager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 5.0f, locationListener);
     }
 
-    @Override
-    public void onSensorChanged(SensorEvent sensorEvent) {
-        Sensor mySensor = sensorEvent.sensor;
-
-        if (mySensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            float x = sensorEvent.values[0];
-            float y = sensorEvent.values[1];
-            float z = sensorEvent.values[2];
-
-            long curTime = System.nanoTime();
-
-            if (curTime - lastUpdate > getSamplingTimeout()) {
-                lastUpdate = curTime;
-
-                float m = (float) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
-
-                pushValues(x, y, z, m);
-            }
-        }
-
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-    }
-
-    /**
-     * To unregister the application during hibernations
-     */
     protected void onPause() {
         super.onPause();
-        sensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(sensorEventListener);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
@@ -360,7 +358,7 @@ public class ActivityHome extends Activity implements SensorEventListener {
 
     protected void onResume() {
         super.onResume();
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(sensorEventListener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         tryRequestLocationUpdates();
     }
 
