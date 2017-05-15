@@ -1,5 +1,6 @@
 package com.example.sujaybshalawadi.mis3;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -15,7 +16,12 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.widget.ArrayAdapter;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -26,8 +32,9 @@ import java.util.Collections;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
 
-public class ActivityHome extends Activity implements SensorEventListener {
+public class ActivityHome extends AppCompatActivity implements SensorEventListener {
     public static final int POINT_WINDOW = 1024;
 
     private SensorManager sensorManager;
@@ -47,8 +54,31 @@ public class ActivityHome extends Activity implements SensorEventListener {
     private FFT fft;
     private float speed = 0.0f;
 
-    private String[] LOCATION_PERMISSIONS = new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION};
+    private String[] PERMISSIONS = new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, READ_EXTERNAL_STORAGE};
+
     private int REQUEST_CHECK_SETTINGS = 0xAB;
+
+    private LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            speed = location.getSpeed();
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+            // ignore
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+            // ignore
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+            // ignore
+        }
+    };
 
     public void pushValues(float x, float y, float z, float m) {
         readingsDeques.x.push(x);
@@ -117,16 +147,73 @@ public class ActivityHome extends Activity implements SensorEventListener {
         ActivityDetector.DetectedActivity detectedActivity = ActivityDetector.detect(speed, freqAbs);
 
         if (detectedActivity.equals(ActivityDetector.DetectedActivity.Jogging)) {
-            Log.e(getClass().getName(),"JOGGING");
+            Log.e(getClass().getName(), "JOGGING");
             mediaPlayerJogging.start();
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Cycling)) {
-            Log.e(getClass().getName(),"CYCLING");
+            Log.e(getClass().getName(), "CYCLING");
             mediaPlayerCycling.start();
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Resting)) {
-            Log.e(getClass().getName(),"RESTING");
+            Log.e(getClass().getName(), "RESTING");
             mediaPlayerJogging.stop();
             mediaPlayerCycling.stop();
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add("Select jogging track");
+        menu.add("Select cycling track");
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getTitle().equals("Select jogging track")) {
+            displayJoggingOptions();
+        } else if (item.getTitle().equals("Select cycling track")) {
+            displayCyclingOptions();
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void displayCyclingOptions() {
+        AlertDialog.Builder builderSingle = new AlertDialog.Builder(this);
+        builderSingle.setTitle("Select a tune for cycling: ");
+
+        ArrayList<MusicRetriever.Item> items = musicRetriever.getItems();
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_singlechoice);
+        for (int i = 0; i < items.size(); i++) {
+            MusicRetriever.Item item = items.get(i);
+            arrayAdapter.add(item.title);
+        }
+
+        builderSingle.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss());
+
+        builderSingle.setAdapter(arrayAdapter, (dialog, which) -> {
+            mediaPlayerCycling = MediaPlayer.create(this, items.get(which).getURI());
+        });
+
+        builderSingle.show();
+    }
+
+    private void displayJoggingOptions() {
+        AlertDialog.Builder builderSingle = new AlertDialog.Builder(this);
+        builderSingle.setTitle("Select a tune for jogging: ");
+
+        ArrayList<MusicRetriever.Item> items = musicRetriever.getItems();
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_singlechoice);
+        for (int i = 0; i < items.size(); i++) {
+            MusicRetriever.Item item = items.get(i);
+            arrayAdapter.add(item.title);
+        }
+
+        builderSingle.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss());
+
+        builderSingle.setAdapter(arrayAdapter, (dialog, which) -> {
+            mediaPlayerJogging = MediaPlayer.create(this, items.get(which).getURI());
+        });
+
+        builderSingle.show();
     }
 
     @Override
@@ -145,6 +232,7 @@ public class ActivityHome extends Activity implements SensorEventListener {
         mediaPlayerJogging = MediaPlayer.create(this, R.raw.jogging);
         mediaPlayerCycling = MediaPlayer.create(this, R.raw.cycling);
 
+        tryLoadTracks();
         tryRequestLocationUpdates();
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 
@@ -152,10 +240,20 @@ public class ActivityHome extends Activity implements SensorEventListener {
         fft = new FFT(POINT_WINDOW);
     }
 
+    private void tryLoadTracks() {
+        if (ActivityCompat.checkSelfPermission(this, READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CHECK_SETTINGS);
+            return;
+        }
+
+        musicRetriever.prepare();
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_CHECK_SETTINGS) {
             if (resultCode == Activity.RESULT_OK) {
+                tryLoadTracks();
                 tryRequestLocationUpdates();
             } else if (resultCode == Activity.RESULT_CANCELED) {
                 askForPermissions();
@@ -167,39 +265,18 @@ public class ActivityHome extends Activity implements SensorEventListener {
         Snackbar.make(findViewById(R.id.graph_view), "Location permission required", Snackbar.LENGTH_INDEFINITE)
                 .setAction(
                         "Grant",
-                        (view) -> ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, REQUEST_CHECK_SETTINGS))
+                        (view) -> ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CHECK_SETTINGS))
                 .show();
     }
 
     private void tryRequestLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, REQUEST_CHECK_SETTINGS);
+            ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_CHECK_SETTINGS);
             return;
         }
 
-        locationMamnager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-                1000L, 5.0f, new LocationListener() {
-                    @Override
-                    public void onLocationChanged(Location location) {
-                        speed = location.getSpeed();
-                    }
-
-                    @Override
-                    public void onStatusChanged(String provider, int status, Bundle extras) {
-                        // ignore
-                    }
-
-                    @Override
-                    public void onProviderEnabled(String provider) {
-                        // ignore
-                    }
-
-                    @Override
-                    public void onProviderDisabled(String provider) {
-                        // ignore
-                    }
-                });
+        locationMamnager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 5.0f, locationListener);
     }
 
     @Override
@@ -235,11 +312,16 @@ public class ActivityHome extends Activity implements SensorEventListener {
     protected void onPause() {
         super.onPause();
         sensorManager.unregisterListener(this);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        locationMamnager.removeUpdates(locationListener);
     }
 
     protected void onResume() {
         super.onResume();
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        tryRequestLocationUpdates();
     }
 
     private static final class ReadingsDeques {

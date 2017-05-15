@@ -59,11 +59,8 @@ public class MusicRetriever {
         return mContentResolver;
     }
 
-    public Item getItem(int i) {
-        if (mItems.isEmpty() || mItems.size() < i)
-            return null;
-
-        return mItems.get(i);
+    public ArrayList<Item> getItems() {
+        return (ArrayList<Item>) mItems;
     }
 
     public static class Item {

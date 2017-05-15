@@ -3,6 +3,7 @@
     package="com.example.sujaybshalawadi.mis3">
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -12,7 +13,8 @@
         android:theme="@style/AppTheme">
 
         <activity
-            android:name=".ActivityHome">
+            android:name=".ActivityHome"
+            android:theme="@style/AppTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
