@@ -184,7 +184,7 @@ public class GraphView extends View {
         canvas.restore();
     }
 
-    public void setBuffers(float[] pointBufferX, float[] pointBufferY, float[] pointBufferZ, float[] pointBufferM) {
+    public void setBuffers(Float[] pointBufferX, Float[] pointBufferY, Float[] pointBufferZ, Float[] pointBufferM) {
         if (backgroundRect == null)
             return;
 
@@ -198,7 +198,7 @@ public class GraphView extends View {
         invalidate();
     }
 
-    private Path getPath(float[] pointBuffer, int indice) {
+    private Path getPath(Float[] pointBuffer, int indice) {
         Path _path = new Path();
 
         _path.moveTo(1f / 2f * backgroundRect.width(), -1f * coefficientWidth);

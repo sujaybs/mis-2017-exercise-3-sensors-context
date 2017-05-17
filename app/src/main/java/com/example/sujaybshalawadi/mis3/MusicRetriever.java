@@ -2,23 +2,23 @@ package com.example.sujaybshalawadi.mis3;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.MediaStore;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MusicRetriever {
+class MusicRetriever {
     private ContentResolver mContentResolver;
     private List<Item> mItems = new ArrayList<>();
 
-    public MusicRetriever(ContentResolver cr) {
+    MusicRetriever(ContentResolver cr) {
         mContentResolver = cr;
     }
 
-    public void prepare() {
+    void prepare() {
         Uri uri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
         Cursor cur = mContentResolver.query(uri, null,
                 MediaStore.Audio.Media.IS_MUSIC + " = 1", null, null);
@@ -53,24 +53,22 @@ public class MusicRetriever {
                     cur.getString(albumColumn),
                     cur.getLong(durationColumn)));
         }
+
+        cur.close();
     }
 
-    public ContentResolver getContentResolver() {
-        return mContentResolver;
-    }
-
-    public ArrayList<Item> getItems() {
+    ArrayList<Item> getItems() {
         return (ArrayList<Item>) mItems;
     }
 
-    public static class Item {
+    static class Item {
         long id;
         String artist;
         String title;
         String album;
         long duration;
 
-        public Item(long id, String artist, String title, String album, long duration) {
+        Item(long id, String artist, String title, String album, long duration) {
             this.id = id;
             this.artist = artist;
             this.title = title;
@@ -78,27 +76,7 @@ public class MusicRetriever {
             this.duration = duration;
         }
 
-        public long getId() {
-            return id;
-        }
-
-        public String getArtist() {
-            return artist;
-        }
-
-        public String getTitle() {
-            return title;
-        }
-
-        public String getAlbum() {
-            return album;
-        }
-
-        public long getDuration() {
-            return duration;
-        }
-
-        public Uri getURI() {
+        Uri getURI() {
             return ContentUris.withAppendedId(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
         }
     }

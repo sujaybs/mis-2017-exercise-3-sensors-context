@@ -93,7 +93,7 @@ public class SpectrumView extends View {
         canvas.restore();
     }
 
-    public void setBuffer(float[] pointBufferM) {
+    public void setBuffer(Float[] pointBufferM) {
         if (backgroundRect == null)
             return;
 
@@ -105,7 +105,7 @@ public class SpectrumView extends View {
         invalidate();
     }
 
-    private Path getPath(float[] pointBuffer) {
+    private Path getPath(Float[] pointBuffer) {
         Path _path = new Path();
 
         _path.moveTo(1f / 2f * backgroundRect.width(), -1f * coefficientWidth);

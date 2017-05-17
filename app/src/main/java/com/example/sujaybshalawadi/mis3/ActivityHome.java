@@ -13,11 +13,11 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
@@ -25,19 +25,21 @@ import android.widget.SeekBar;
 
 import org.apache.commons.lang3.ArrayUtils;
 
-import java.util.ArrayDeque;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+import static org.apache.commons.lang3.ObjectUtils.max;
+import static org.apache.commons.lang3.ObjectUtils.min;
 
 public class ActivityHome extends Activity {
 
-    private static int windowIndex = 3;
-    private static int samplingIndex = 7;
+    private static int windowIndex = 0;
+    private static int samplingIndex = 0;
 
     private SensorManager sensorManager;
     private Sensor accelerometer;
@@ -54,7 +56,12 @@ public class ActivityHome extends Activity {
     private HammingWindow hammingWindow;
     private FFT fft;
     private float speed = 0.0f;
-    private String[] PERMISSIONS = new String[]{ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, READ_EXTERNAL_STORAGE};
+    private String[] PERMISSIONS = new String[]{
+            ACCESS_FINE_LOCATION,
+            ACCESS_COARSE_LOCATION,
+            READ_EXTERNAL_STORAGE,
+            WRITE_EXTERNAL_STORAGE
+    };
     private int REQUEST_CHECK_SETTINGS = 0xAB;
 
     private LocationListener locationListener = new LocationListener() {
@@ -80,6 +87,10 @@ public class ActivityHome extends Activity {
     };
 
     private boolean isPlottingStopped = false;
+    private double[] freqReal;
+    private double[] freqImag;
+    private Float[] freqAbs;
+
     private SensorEventListener sensorEventListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent sensorEvent) {
@@ -97,7 +108,11 @@ public class ActivityHome extends Activity {
 
                     float m = (float) Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2));
 
-                    pushValues(x, y, z, m);
+                    try {
+                        pushValues(x, y, z, m);
+                    } catch (IOException e) {
+                        Log.e(getClass().getName(), "", e);
+                    }
                 }
             }
 
@@ -113,57 +128,39 @@ public class ActivityHome extends Activity {
         return (int) Math.pow(2, 7 + windowIndex);
     }
 
-    public void pushValues(float x, float y, float z, float m) {
+    public void pushValues(float x, float y, float z, float m) throws IOException {
         int pointWindow = getPointWindow();
 
-        readingsDeques.x.push(x);
-        readingsDeques.y.push(y);
-        readingsDeques.z.push(z);
-        readingsDeques.m.push(m);
-
-        while (readingsDeques.x.size() > pointWindow) {
-            readingsDeques.x.removeLast();
-            readingsDeques.y.removeLast();
-            readingsDeques.z.removeLast();
-            readingsDeques.m.removeLast();
+        while (readingsDeques.x.length - 1 > pointWindow) {
+            readingsDeques.x = ArrayUtils.remove(readingsDeques.x, readingsDeques.x.length - 1);
+            readingsDeques.y = ArrayUtils.remove(readingsDeques.y, readingsDeques.y.length - 1);
+            readingsDeques.z = ArrayUtils.remove(readingsDeques.z, readingsDeques.z.length - 1);
+            readingsDeques.m = ArrayUtils.remove(readingsDeques.m, readingsDeques.m.length - 1);
         }
 
-        Float[] pointsX = readingsDeques.x.toArray(new Float[readingsDeques.x.size()]);
-        Float[] pointsY = readingsDeques.y.toArray(new Float[readingsDeques.y.size()]);
-        Float[] pointsZ = readingsDeques.z.toArray(new Float[readingsDeques.z.size()]);
-        Float[] pointsM = readingsDeques.m.toArray(new Float[readingsDeques.m.size()]);
+        readingsDeques.x = ArrayUtils.add(readingsDeques.x, 0, x);
+        readingsDeques.y = ArrayUtils.add(readingsDeques.y, 0, y);
+        readingsDeques.z = ArrayUtils.add(readingsDeques.z, 0, z);
+        readingsDeques.m = ArrayUtils.add(readingsDeques.m, 0, m);
 
-        ArrayList<Float> listX = new ArrayList<>(Arrays.asList(pointsX));
-        ArrayList<Float> listY = new ArrayList<>(Arrays.asList(pointsY));
-        ArrayList<Float> listZ = new ArrayList<>(Arrays.asList(pointsZ));
-        ArrayList<Float> listM = new ArrayList<>(Arrays.asList(pointsM));
+        graphView.adjustMaxima(max(readingsDeques.x),
+                max(readingsDeques.y),
+                max(readingsDeques.z),
+                max(readingsDeques.m));
 
-        float[] pointBufferX = ArrayUtils.toPrimitive(pointsX, 0.0F);
-        float[] pointBufferY = ArrayUtils.toPrimitive(pointsY, 0.0F);
-        float[] pointBufferZ = ArrayUtils.toPrimitive(pointsZ, 0.0F);
-        float[] pointBufferM = ArrayUtils.toPrimitive(pointsM, 0.0F);
+        graphView.adjustMinima(min(readingsDeques.x),
+                min(readingsDeques.y),
+                min(readingsDeques.z),
+                min(readingsDeques.m));
 
-        graphView.adjustMaxima(Collections.max(listX),
-                Collections.max(listY),
-                Collections.max(listZ),
-                Collections.max(listM));
+        graphView.setBuffers(readingsDeques.x,
+                readingsDeques.y,
+                readingsDeques.z,
+                readingsDeques.m);
 
-        graphView.adjustMinima(Collections.min(listX),
-                Collections.min(listY),
-                Collections.min(listZ),
-                Collections.min(listM));
-
-        graphView.setBuffers(pointBufferX, pointBufferY, pointBufferZ, pointBufferM);
-
-        double[] freqReal = new double[pointWindow];
-        double[] freqImag = new double[pointWindow];
-        float[] freqAbs = new float[pointWindow];
-
-        hammingWindow = new HammingWindow(pointWindow);
-        fft = new FFT(pointWindow);
-
-        for (int i = 0; i < pointBufferM.length; i++) {
-            freqReal[i] = hammingWindow.getValue(i) * pointBufferM[i];
+        for (int i = 0; i < freqReal.length; i++) {
+            freqReal[i] = hammingWindow.getValue(i) * readingsDeques.m[i];
+            freqImag[i] = 0.0f;
         }
 
         fft.fft(freqReal, freqImag);
@@ -178,21 +175,41 @@ public class ActivityHome extends Activity {
         freqAbs[freqAbs.length - 2] = 0f;
         freqAbs[freqAbs.length - 1] = 0f;
 
-        ArrayList<Float> freqsAbs = new ArrayList<>(Arrays.asList(ArrayUtils.toObject(freqAbs)));
-        spectrumView.adjustMaximum(Collections.max(freqsAbs));
+        float oscillationEnergy = 0;
+
+        for (float freqAb : freqAbs) {
+            oscillationEnergy += freqAb;
+        }
+
+        float freqsMax = max(freqAbs);
+        spectrumView.adjustMaximum(freqsMax);
         spectrumView.setBuffer(freqAbs);
 
-        ActivityDetector.DetectedActivity detectedActivity = ActivityDetector.detect(speed, freqAbs);
+        ActivityDetector.DetectedActivity detectedActivity = ActivityDetector.detect(speed, freqsMax / oscillationEnergy);
+
+//        Log.d(getClass().getName(), "Oscillation energy: " + String.valueOf(oscillationEnergy));
+//        Log.d(getClass().getName(), "Oscillation peak: " + String.valueOf(freqsMax));
 
         if (detectedActivity.equals(ActivityDetector.DetectedActivity.Jogging)) {
-            Log.e(getClass().getName(), "JOGGING");
-            mediaPlayerJogging.start();
+            Log.w(getClass().getName(), "JOGGING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
+            if (!mediaPlayerJogging.isPlaying()) {
+                mediaPlayerJogging.prepare();
+                mediaPlayerJogging.start();
+            }
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Cycling)) {
-            Log.e(getClass().getName(), "CYCLING");
-            mediaPlayerCycling.start();
+            Log.w(getClass().getName(), "CYCLING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
+            if (!mediaPlayerCycling.isPlaying()) {
+                mediaPlayerCycling.prepare();
+                mediaPlayerCycling.start();
+            }
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Resting)) {
-            mediaPlayerJogging.stop();
-            mediaPlayerCycling.stop();
+            Log.w(getClass().getName(), "RESTING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
+            if (mediaPlayerJogging.isPlaying()) {
+                mediaPlayerJogging.stop();
+            }
+            if (mediaPlayerCycling.isPlaying()) {
+                mediaPlayerCycling.stop();
+            }
         }
     }
 
@@ -224,9 +241,15 @@ public class ActivityHome extends Activity {
             arrayAdapter.add(item.title);
         }
 
-        builder.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss())
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
                 .setAdapter(arrayAdapter, (dialog, which) -> {
-                    mediaPlayerCycling = MediaPlayer.create(this, items.get(which).getURI());
+                    try {
+                        mediaPlayerCycling.reset();
+                        mediaPlayerCycling.setDataSource(this, items.get(which).getURI());
+                        mediaPlayerCycling.prepare();
+                    } catch (IOException e) {
+                        Log.e(getClass().getName(), "", e);
+                    }
                 }).show();
     }
 
@@ -242,9 +265,15 @@ public class ActivityHome extends Activity {
             arrayAdapter.add(item.title);
         }
 
-        builder.setNegativeButton("cancel", (dialog, which) -> dialog.dismiss())
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
                 .setAdapter(arrayAdapter, (dialog, which) -> {
-                    mediaPlayerJogging = MediaPlayer.create(this, items.get(which).getURI());
+                    try {
+                        mediaPlayerJogging.reset();
+                        mediaPlayerJogging.setDataSource(this, items.get(which).getURI());
+                        mediaPlayerJogging.prepare();
+                    } catch (IOException e) {
+                        Log.e(getClass().getName(), "", e);
+                    }
                 }).show();
     }
 
@@ -264,11 +293,15 @@ public class ActivityHome extends Activity {
         locationMamnager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         musicRetriever = new MusicRetriever(this.getContentResolver());
         mediaPlayerJogging = MediaPlayer.create(this, R.raw.jogging);
+        mediaPlayerJogging.setAudioStreamType(AudioManager.STREAM_MUSIC);
         mediaPlayerCycling = MediaPlayer.create(this, R.raw.cycling);
+        mediaPlayerCycling.setAudioStreamType(AudioManager.STREAM_MUSIC);
+
+        initArrays();
 
         tryLoadTracks();
         tryRequestLocationUpdates();
-        sensorManager.registerListener(sensorEventListener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(sensorEventListener, accelerometer, SensorManager.SENSOR_DELAY_GAME);
         seekBarWindow.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -282,8 +315,9 @@ public class ActivityHome extends Activity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                isPlottingStopped = false;
                 windowIndex = seekBar.getProgress();
+                initArrays();
+                isPlottingStopped = false;
             }
         });
 
@@ -303,6 +337,21 @@ public class ActivityHome extends Activity {
 
             }
         });
+    }
+
+    private void initArrays() {
+        int pointWindow = getPointWindow();
+
+        freqReal = new double[pointWindow];
+        freqImag = new double[pointWindow];
+        freqAbs = new Float[pointWindow];
+
+        Arrays.fill(freqAbs, 0.0f);
+
+        readingsDeques.initDeques();
+
+        hammingWindow = new HammingWindow(pointWindow);
+        fft = new FFT(pointWindow);
     }
 
     long getSamplingTimeout() {
@@ -344,7 +393,7 @@ public class ActivityHome extends Activity {
             return;
         }
 
-        locationMamnager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 5.0f, locationListener);
+        locationMamnager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100L, 5.0f, locationListener);
     }
 
     protected void onPause() {
@@ -356,6 +405,13 @@ public class ActivityHome extends Activity {
         locationMamnager.removeUpdates(locationListener);
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (mediaPlayerCycling != null) mediaPlayerCycling.release();
+        if (mediaPlayerJogging != null) mediaPlayerJogging.release();
+    }
+
     protected void onResume() {
         super.onResume();
         sensorManager.registerListener(sensorEventListener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
@@ -363,16 +419,27 @@ public class ActivityHome extends Activity {
     }
 
     private static final class ReadingsDeques {
-        ArrayDeque<Float> x;
-        ArrayDeque<Float> y;
-        ArrayDeque<Float> z;
-        ArrayDeque<Float> m;
+        Float[] x;
+        Float[] y;
+        Float[] z;
+        Float[] m;
 
         ReadingsDeques() {
-            x = new ArrayDeque<>();
-            y = new ArrayDeque<>();
-            z = new ArrayDeque<>();
-            m = new ArrayDeque<>();
+            initDeques();
+        }
+
+        private void initDeques() {
+            int pointWindow = getPointWindow();
+
+            x = new Float[pointWindow];
+            y = new Float[pointWindow];
+            z = new Float[pointWindow];
+            m = new Float[pointWindow];
+
+            Arrays.fill(x, 0.0f);
+            Arrays.fill(y, 0.0f);
+            Arrays.fill(z, 0.0f);
+            Arrays.fill(m, 0.0f);
         }
     }
 
