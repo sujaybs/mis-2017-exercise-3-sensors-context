@@ -191,24 +191,24 @@ public class ActivityHome extends Activity {
 //        Log.d(getClass().getName(), "Oscillation peak: " + String.valueOf(freqsMax));
 
         if (detectedActivity.equals(ActivityDetector.DetectedActivity.Jogging)) {
-            Log.w(getClass().getName(), "JOGGING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
+//            Log.w(getClass().getName(), "JOGGING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
             if (!mediaPlayerJogging.isPlaying()) {
-                mediaPlayerJogging.prepare();
                 mediaPlayerJogging.start();
             }
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Cycling)) {
-            Log.w(getClass().getName(), "CYCLING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
+//            Log.w(getClass().getName(), "CYCLING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
             if (!mediaPlayerCycling.isPlaying()) {
-                mediaPlayerCycling.prepare();
                 mediaPlayerCycling.start();
             }
         } else if (detectedActivity.equals(ActivityDetector.DetectedActivity.Resting)) {
-            Log.w(getClass().getName(), "RESTING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
+//            Log.w(getClass().getName(), "RESTING, PER: " + String.valueOf(freqsMax / oscillationEnergy));
             if (mediaPlayerJogging.isPlaying()) {
                 mediaPlayerJogging.stop();
+                mediaPlayerJogging.prepare();
             }
             if (mediaPlayerCycling.isPlaying()) {
                 mediaPlayerCycling.stop();
+                mediaPlayerCycling.prepare();
             }
         }
     }

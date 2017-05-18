@@ -3,7 +3,7 @@ package com.example.sujaybshalawadi.mis3;
 class ActivityDetector {
 
     static DetectedActivity detect(float velocity, float per) {
-        if (per < 0.08f)
+        if (per < 0.04f)
             return DetectedActivity.Resting;
 
         if (velocity > 2.77f && velocity < 8.3f) {
